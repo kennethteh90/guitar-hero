@@ -106,7 +106,9 @@ export default class SongSelectScene extends Phaser.Scene {
   _buildSongList() {
     const keys = ['demo3','demo4','demo5','demo6','demo7','demo8',
                   'demo9','demo10','demo11','demo12','demo13','demo14','demo15',
-                  'demo16','demo17','demo18','demo19','demo20','demo21'];
+                  'demo16','demo17','demo18','demo19','demo20','demo21',
+                  'demo22','demo23','demo24','demo25','demo26','demo27',
+                  'demo28','demo29','demo30','demo31'];
     const songs = [];
     keys.forEach((key, i) => {
       const chart = this.cache.json.get(`chart-${key}`);
