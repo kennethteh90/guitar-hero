@@ -24,6 +24,12 @@ export default class BootScene extends Phaser.Scene {
       { key: 'demo13', path: 'songs/demo13' },
       { key: 'demo14', path: 'songs/demo14' },
       { key: 'demo15', path: 'songs/demo15' },
+      { key: 'demo16', path: 'songs/demo16' },
+      { key: 'demo17', path: 'songs/demo17' },
+      { key: 'demo18', path: 'songs/demo18' },
+      { key: 'demo19', path: 'songs/demo19' },
+      { key: 'demo20', path: 'songs/demo20' },
+      { key: 'demo21', path: 'songs/demo21' },
     ];
 
     for (const s of songs) {

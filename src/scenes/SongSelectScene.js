@@ -96,11 +96,17 @@ export default class SongSelectScene extends Phaser.Scene {
     this.statusText = this.add.text(cx, DESIGN_HEIGHT - 20, '', {
       fontSize: '14px', fontFamily: 'Arial', color: '#FFD700', align: 'center'
     }).setOrigin(0.5).setDepth(20);
+
+    // NCS attribution (CC BY 3.0) — some tracks courtesy of NoCopyrightSounds
+    this.add.text(cx, DESIGN_HEIGHT - 6, 'Some music: NoCopyrightSounds (CC BY 3.0) · ncs.io', {
+      fontSize: '9px', fontFamily: 'Arial', color: '#333355', align: 'center'
+    }).setOrigin(0.5).setDepth(20);
   }
 
   _buildSongList() {
     const keys = ['demo3','demo4','demo5','demo6','demo7','demo8',
-                  'demo9','demo10','demo11','demo12','demo13','demo14','demo15'];
+                  'demo9','demo10','demo11','demo12','demo13','demo14','demo15',
+                  'demo16','demo17','demo18','demo19','demo20','demo21'];
     const songs = [];
     keys.forEach((key, i) => {
       const chart = this.cache.json.get(`chart-${key}`);
