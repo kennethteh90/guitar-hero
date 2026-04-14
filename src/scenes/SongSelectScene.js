@@ -85,6 +85,10 @@ export default class SongSelectScene extends Phaser.Scene {
     this._dragMoved   = () => dragMoved;
     this._modalOpen   = false;
 
+    // Guard against tap-bleed from the MenuScene pointerdown that launched this scene
+    this._startupGuard = true;
+    this.time.delayedCall(250, () => { this._startupGuard = false; });
+
     // Fixed UI
     const backBtn = this.add.text(24, 24, '← BACK', {
       fontSize: '16px', fontFamily: 'Arial', color: '#aaaaaa'
@@ -150,7 +154,7 @@ export default class SongSelectScene extends Phaser.Scene {
     this._scrollContainer.add(zone);
 
     zone.on('pointerup', () => {
-      if (this._modalOpen) return;
+      if (this._modalOpen || this._startupGuard) return;
       if (this._dragMoved && this._dragMoved()) return;
       this._showDifficultyModal(song.title, (diff) => this._startSong(song, diff));
     });
@@ -195,7 +199,7 @@ export default class SongSelectScene extends Phaser.Scene {
     this._scrollContainer.add(zone);
 
     zone.on('pointerup', () => {
-      if (this._modalOpen) return;
+      if (this._modalOpen || this._startupGuard) return;
       if (this._dragMoved && this._dragMoved()) return;
       if (!this._processing) this._triggerUpload();
     });
@@ -389,6 +393,15 @@ export default class SongSelectScene extends Phaser.Scene {
   }
 
   _startSong(song, difficulty) {
+    if (!this.cache.audio.has(song.key)) {
+      this.statusText.setText('Loading...');
+      this.load.audio(song.key, [`songs/${song.key}/track.mp3`]);
+      this.load.once('complete', () => {
+        this.scene.start('GameplayScene', { songKey: song.key, chartKey: song.chartKey, difficulty });
+      });
+      this.load.start();
+      return;
+    }
     this.scene.start('GameplayScene', { songKey: song.key, chartKey: song.chartKey, difficulty });
   }
 }
