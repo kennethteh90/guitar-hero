@@ -50,6 +50,18 @@ export default class SongSelectScene extends Phaser.Scene {
     if (demo2Chart) {
       songs.push({ key: 'demo2', chartKey: 'chart-demo2', title: demo2Chart.title || 'Demo Song 2', artist: demo2Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[1] });
     }
+    const demo3Chart = this.cache.json.get('chart-demo3');
+    if (demo3Chart) {
+      songs.push({ key: 'demo3', chartKey: 'chart-demo3', title: demo3Chart.title || 'Demo Song 3', artist: demo3Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[2] });
+    }
+    const demo4Chart = this.cache.json.get('chart-demo4');
+    if (demo4Chart) {
+      songs.push({ key: 'demo4', chartKey: 'chart-demo4', title: demo4Chart.title || 'Demo Song 4', artist: demo4Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[3] });
+    }
+    const demo5Chart = this.cache.json.get('chart-demo5');
+    if (demo5Chart) {
+      songs.push({ key: 'demo5', chartKey: 'chart-demo5', title: demo5Chart.title || 'Demo Song 5', artist: demo5Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[0] });
+    }
     return songs;
   }
 

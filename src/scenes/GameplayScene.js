@@ -485,7 +485,28 @@ export default class GameplayScene extends Phaser.Scene {
         const idx = this.activeNotes.indexOf(closest);
         if (idx !== -1) this._recycleNote(closest, idx);
       });
+      return;
     }
+
+    // Ghost tap — no note in window
+    const result = this.scoreManager.registerGhostTap();
+    this._updateHUD(result);
+    this._showGhostTapFeedback(lane);
+  }
+
+  _showGhostTapFeedback(lane) {
+    const x = getLaneX(lane);
+    const y = this.hitZoneY - 30;
+    const text = this.add.text(x, y, 'MISS', {
+      fontSize: '18px', fontFamily: 'Arial Black, Arial',
+      color: '#FF4444', stroke: '#000000', strokeThickness: 2, align: 'center'
+    }).setOrigin(0.5).setDepth(12);
+    this.tweens.add({
+      targets: text,
+      y: y - 40, alpha: { from: 1, to: 0 },
+      duration: 500, ease: 'Quad.Out',
+      onComplete: () => text.destroy()
+    });
   }
 
   _onLaneRelease(lane) {

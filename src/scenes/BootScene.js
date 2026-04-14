@@ -22,6 +22,15 @@ export default class BootScene extends Phaser.Scene {
 
     this.load.audio('demo2', ['songs/demo2/track.mp3', 'songs/demo2/track.ogg']);
     this.load.json('chart-demo2', 'songs/demo2/chart.json');
+
+    this.load.audio('demo3', ['songs/demo3/track.mp3']);
+    this.load.json('chart-demo3', 'songs/demo3/chart.json');
+
+    this.load.audio('demo4', ['songs/demo4/track.mp3']);
+    this.load.json('chart-demo4', 'songs/demo4/chart.json');
+
+    this.load.audio('demo5', ['songs/demo5/track.mp3']);
+    this.load.json('chart-demo5', 'songs/demo5/chart.json');
   }
 
   create() {

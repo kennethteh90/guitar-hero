@@ -49,6 +49,16 @@ export default class ScoreManager {
     return this.judge(999);
   }
 
+  registerGhostTap() {
+    // Penalise tapping when no note is present: lose combo, break multiplier, deduct points
+    const penalty = 50;
+    this.combo = 0;
+    this.multiplier = 1;
+    this.score = Math.max(0, this.score - penalty);
+    this.judgments.miss++;
+    return { judgment: 'ghost', score: this.score, combo: 0, multiplier: 1 };
+  }
+
   scoreHoldBonus() {
     const bonus = HOLD_BONUS_SCORE * this.multiplier;
     this.score += bonus;
