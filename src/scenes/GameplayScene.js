@@ -310,7 +310,7 @@ export default class GameplayScene extends Phaser.Scene {
         fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
 
-      resumeBtn.on('pointerdown', () => {
+      resumeBtn.on('pointerup', () => {
         overlay.destroy(); pauseLabel.destroy(); resumeBtn.destroy(); quitBtn.destroy();
         this._togglePause();
       });
@@ -318,7 +318,7 @@ export default class GameplayScene extends Phaser.Scene {
       const quitBtn = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 90, 'QUIT', {
         fontSize: '20px', fontFamily: 'Arial', color: '#FF6B6B'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
-      quitBtn.on('pointerdown', () => this.scene.start('SongSelectScene'));
+      quitBtn.on('pointerup', () => this.scene.start('SongSelectScene'));
     }
   }
 
