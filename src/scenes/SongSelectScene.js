@@ -61,6 +61,7 @@ export default class SongSelectScene extends Phaser.Scene {
     let dragMoved = false;
 
     this.input.on('pointerdown', (p) => {
+      if (this._modalOpen) return;
       if (p.y < SCROLL_TOP || p.y > SCROLL_BOTTOM) return;
       isDragging = true;
       dragMoved  = false;
@@ -69,9 +70,9 @@ export default class SongSelectScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (p) => {
-      if (!isDragging) return;
+      if (!isDragging || this._modalOpen) return;
       const dy = p.y - dragStartY;
-      if (Math.abs(dy) > 5) dragMoved = true;
+      if (Math.abs(dy) > 10) dragMoved = true;  // 10px threshold — forgiving on mobile
       if (dragMoved) {
         const newY = Phaser.Math.Clamp(containerStartY + dy, SCROLL_TOP - maxScroll, SCROLL_TOP);
         this._scrollContainer.y = newY;
@@ -81,7 +82,8 @@ export default class SongSelectScene extends Phaser.Scene {
     this.input.on('pointerup', () => { isDragging = false; });
 
     // Expose dragMoved so card tap handlers can ignore drags
-    this._dragMoved = () => dragMoved;
+    this._dragMoved   = () => dragMoved;
+    this._modalOpen   = false;
 
     // Fixed UI
     const backBtn = this.add.text(24, 24, '← BACK', {
@@ -140,6 +142,7 @@ export default class SongSelectScene extends Phaser.Scene {
     this._scrollContainer.add(zone);
 
     zone.on('pointerup', () => {
+      if (this._modalOpen) return;
       if (this._dragMoved && this._dragMoved()) return;
       this._showDifficultyModal(song.title, (diff) => this._startSong(song, diff));
     });
@@ -184,6 +187,7 @@ export default class SongSelectScene extends Phaser.Scene {
     this._scrollContainer.add(zone);
 
     zone.on('pointerup', () => {
+      if (this._modalOpen) return;
       if (this._dragMoved && this._dragMoved()) return;
       if (!this._processing) this._triggerUpload();
     });
@@ -206,6 +210,9 @@ export default class SongSelectScene extends Phaser.Scene {
   // ---------- Difficulty modal ----------
 
   _showDifficultyModal(songTitle, onSelect) {
+    if (this._modalOpen) return;
+    this._modalOpen = true;
+
     const cx = DESIGN_WIDTH / 2;
     const modalW = DESIGN_WIDTH - 60;
     const modalH = 280;
@@ -213,7 +220,18 @@ export default class SongSelectScene extends Phaser.Scene {
     const modalY = DESIGN_HEIGHT / 2 - modalH / 2;
     const depth = 50;
 
-    // Dim overlay
+    const closeModal = () => {
+      this._modalOpen = false;
+      allObjects.forEach(o => { if (o && o.destroy) o.destroy(); });
+    };
+
+    // Full-screen input blocker — sits at depth 50, absorbs all taps that
+    // miss the buttons so they cannot reach the card zones underneath.
+    const blocker = this.add.zone(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT)
+      .setOrigin(0).setDepth(depth).setInteractive();
+    blocker.on('pointerup', () => { /* absorb — do nothing */ });
+
+    // Dim overlay (visual only)
     const overlay = this.add.graphics().setDepth(depth);
     overlay.fillStyle(0x000000, 0.75);
     overlay.fillRect(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
@@ -225,12 +243,11 @@ export default class SongSelectScene extends Phaser.Scene {
     panel.lineStyle(2, 0x333366, 1);
     panel.strokeRoundedRect(modalX, modalY, modalW, modalH, 14);
 
-    // Song name
-    this.add.text(cx, modalY + 28, songTitle, {
+    const songNameTxt = this.add.text(cx, modalY + 28, songTitle, {
       fontSize: '16px', fontFamily: 'Arial Black, Arial', color: '#888888', align: 'center'
     }).setOrigin(0.5).setDepth(depth + 2);
 
-    this.add.text(cx, modalY + 52, 'SELECT DIFFICULTY', {
+    const titleTxt = this.add.text(cx, modalY + 52, 'SELECT DIFFICULTY', {
       fontSize: '20px', fontFamily: 'Arial Black, Arial', color: '#ffffff', align: 'center'
     }).setOrigin(0.5).setDepth(depth + 2);
 
@@ -241,7 +258,7 @@ export default class SongSelectScene extends Phaser.Scene {
     const spacing = 108;
     const rowY = modalY + 110;
 
-    const modalObjects = [overlay, panel];
+    const allObjects = [blocker, overlay, panel, songNameTxt, titleTxt];
 
     diffKeys.forEach((key, i) => {
       const diff = DIFFICULTIES[key];
@@ -259,6 +276,7 @@ export default class SongSelectScene extends Phaser.Scene {
 
       const dots = this._difficultyDots(bx, rowY + 50, key, depth + 3);
 
+      // Buttons use pointerup so the tap-open-modal pointerup doesn't bleed through
       const hitZone = this.add.zone(bx - btnW / 2, rowY, btnW, btnH)
         .setOrigin(0).setDepth(depth + 4).setInteractive({ useHandCursor: true });
 
@@ -276,33 +294,27 @@ export default class SongSelectScene extends Phaser.Scene {
         btnGfx.lineStyle(2, diff.colorHex, 0.7);
         btnGfx.strokeRoundedRect(bx - btnW / 2, rowY, btnW, btnH, 10);
       });
-      hitZone.on('pointerdown', () => {
-        modalObjects.forEach(o => o.destroy());
-        allModalObjects.forEach(o => o.destroy());
+      hitZone.on('pointerup', () => {
+        closeModal();
         onSelect(key);
       });
 
-      modalObjects.push(btnGfx, label, hitZone, ...dots);
+      allObjects.push(btnGfx, label, hitZone, ...dots);
     });
 
-    // Description text (updates on hover — static for simplicity)
     const descText = this.add.text(cx, rowY + btnH + 20, DIFFICULTIES[DEFAULT_DIFFICULTY].description, {
       fontSize: '12px', fontFamily: 'Arial', color: '#666666', align: 'center'
     }).setOrigin(0.5).setDepth(depth + 2);
 
-    // Cancel
     const cancelBtn = this.add.text(cx, modalY + modalH - 28, 'CANCEL', {
       fontSize: '14px', fontFamily: 'Arial', color: '#555555', align: 'center'
     }).setOrigin(0.5).setDepth(depth + 3).setInteractive({ useHandCursor: true });
 
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#aaaaaa'));
     cancelBtn.on('pointerout',  () => cancelBtn.setColor('#555555'));
-    cancelBtn.on('pointerdown', () => {
-      modalObjects.forEach(o => o.destroy());
-      allModalObjects.forEach(o => o.destroy());
-    });
+    cancelBtn.on('pointerup', () => closeModal());
 
-    const allModalObjects = [descText, cancelBtn];
+    allObjects.push(descText, cancelBtn);
   }
 
   _difficultyDots(cx, y, diffKey, depth) {
