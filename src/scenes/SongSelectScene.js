@@ -12,64 +12,114 @@ export default class SongSelectScene extends Phaser.Scene {
   create() {
     const cx = DESIGN_WIDTH / 2;
 
+    // Background
     const bg = this.add.graphics();
     bg.fillStyle(0x0a0a1a, 1);
     bg.fillRect(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
 
+    // Fixed header (depth 10 so it floats above scroll container)
     this.add.text(cx, 48, 'SELECT SONG', {
       fontSize: '28px', fontFamily: 'Arial Black, Arial', color: '#ffffff'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(10);
 
-    this.add.text(cx, 80, '─────────────────', {
-      fontSize: '14px', color: '#333333'
-    }).setOrigin(0.5);
+    // Header fade overlay
+    const headerMask = this.add.graphics().setDepth(9);
+    headerMask.fillStyle(0x0a0a1a, 1);
+    headerMask.fillRect(0, 0, DESIGN_WIDTH, 100);
+
+    // --- Scrollable container ---
+    const SCROLL_TOP = 100;         // y where scroll area begins
+    const SCROLL_BOTTOM = DESIGN_HEIGHT - 50;
+    const SCROLL_H = SCROLL_BOTTOM - SCROLL_TOP;
+    const CARD_H = 88;
+    const CARD_GAP = 8;
+    const CARD_STRIDE = CARD_H + CARD_GAP;
+
+    this._scrollContainer = this.add.container(0, SCROLL_TOP);
 
     const songs = this._buildSongList();
-    songs.forEach((song, i) => this._createSongCard(song, i));
-    this._createUploadButton(songs.length);
+    songs.forEach((song, i) => this._createSongCard(song, i, CARD_STRIDE));
+    this._createUploadButton(songs.length, CARD_STRIDE);
 
+    const totalContentH = (songs.length + 1) * CARD_STRIDE + 20;
+    const maxScroll = Math.max(0, totalContentH - SCROLL_H);
+
+    // Clip scrollable area
+    const maskGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    maskGfx.fillRect(0, SCROLL_TOP, DESIGN_WIDTH, SCROLL_H);
+    this._scrollContainer.setMask(maskGfx.createGeometryMask());
+
+    // Bottom fade overlay
+    const botFade = this.add.graphics().setDepth(9);
+    botFade.fillGradientStyle(0x0a0a1a, 0x0a0a1a, 0x0a0a1a, 0x0a0a1a, 0, 0, 1, 1);
+    botFade.fillRect(0, SCROLL_BOTTOM - 40, DESIGN_WIDTH, 40);
+
+    // Drag-to-scroll
+    let dragStartY = 0;
+    let containerStartY = 0;
+    let isDragging = false;
+    let dragMoved = false;
+
+    this.input.on('pointerdown', (p) => {
+      if (p.y < SCROLL_TOP || p.y > SCROLL_BOTTOM) return;
+      isDragging = true;
+      dragMoved  = false;
+      dragStartY = p.y;
+      containerStartY = this._scrollContainer.y;
+    });
+
+    this.input.on('pointermove', (p) => {
+      if (!isDragging) return;
+      const dy = p.y - dragStartY;
+      if (Math.abs(dy) > 5) dragMoved = true;
+      if (dragMoved) {
+        const newY = Phaser.Math.Clamp(containerStartY + dy, SCROLL_TOP - maxScroll, SCROLL_TOP);
+        this._scrollContainer.y = newY;
+      }
+    });
+
+    this.input.on('pointerup', () => { isDragging = false; });
+
+    // Expose dragMoved so card tap handlers can ignore drags
+    this._dragMoved = () => dragMoved;
+
+    // Fixed UI
     const backBtn = this.add.text(24, 24, '← BACK', {
       fontSize: '16px', fontFamily: 'Arial', color: '#aaaaaa'
-    }).setInteractive({ useHandCursor: true });
+    }).setDepth(10).setInteractive({ useHandCursor: true });
     backBtn.on('pointerdown', () => this.scene.start('MenuScene'));
     backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
     backBtn.on('pointerout',  () => backBtn.setColor('#aaaaaa'));
 
-    this.statusText = this.add.text(cx, DESIGN_HEIGHT - 30, '', {
+    this.statusText = this.add.text(cx, DESIGN_HEIGHT - 20, '', {
       fontSize: '14px', fontFamily: 'Arial', color: '#FFD700', align: 'center'
     }).setOrigin(0.5).setDepth(20);
   }
 
   _buildSongList() {
+    const keys = ['demo3','demo4','demo5','demo6','demo7','demo8',
+                  'demo9','demo10','demo11','demo12','demo13','demo14','demo15'];
     const songs = [];
-    const demo1Chart = this.cache.json.get('chart-demo1');
-    if (demo1Chart) {
-      songs.push({ key: 'demo1', chartKey: 'chart-demo1', title: demo1Chart.title || 'Demo Song 1', artist: demo1Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[0] });
-    }
-    const demo2Chart = this.cache.json.get('chart-demo2');
-    if (demo2Chart) {
-      songs.push({ key: 'demo2', chartKey: 'chart-demo2', title: demo2Chart.title || 'Demo Song 2', artist: demo2Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[1] });
-    }
-    const demo3Chart = this.cache.json.get('chart-demo3');
-    if (demo3Chart) {
-      songs.push({ key: 'demo3', chartKey: 'chart-demo3', title: demo3Chart.title || 'Demo Song 3', artist: demo3Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[2] });
-    }
-    const demo4Chart = this.cache.json.get('chart-demo4');
-    if (demo4Chart) {
-      songs.push({ key: 'demo4', chartKey: 'chart-demo4', title: demo4Chart.title || 'Demo Song 4', artist: demo4Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[3] });
-    }
-    const demo5Chart = this.cache.json.get('chart-demo5');
-    if (demo5Chart) {
-      songs.push({ key: 'demo5', chartKey: 'chart-demo5', title: demo5Chart.title || 'Demo Song 5', artist: demo5Chart.artist || 'Demo Artist', color: LANE_COLORS_HEX[0] });
-    }
+    keys.forEach((key, i) => {
+      const chart = this.cache.json.get(`chart-${key}`);
+      if (chart) {
+        songs.push({
+          key,
+          chartKey: `chart-${key}`,
+          title:  chart.title  || key,
+          artist: chart.artist || 'Unknown',
+          color:  LANE_COLORS_HEX[i % LANE_COLORS_HEX.length]
+        });
+      }
+    });
     return songs;
   }
 
-  _createSongCard(song, index) {
+  _createSongCard(song, index, stride) {
     const cx = DESIGN_WIDTH / 2;
-    const cardY = 130 + index * 100;
+    const cardY = index * stride;
     const cardW = DESIGN_WIDTH - 40;
-    const cardH = 80;
+    const cardH = stride - 8;
 
     const card = this.add.graphics();
     card.fillStyle(0x1a1a2e, 1);
@@ -81,11 +131,18 @@ export default class SongSelectScene extends Phaser.Scene {
     accent.fillStyle(song.color, 0.8);
     accent.fillRoundedRect(20, cardY, 6, cardH, { tl: 10, bl: 10, tr: 0, br: 0 });
 
-    this.add.text(44, cardY + 20, song.title,  { fontSize: '18px', fontFamily: 'Arial Black, Arial', color: '#ffffff' });
-    this.add.text(44, cardY + 48, song.artist, { fontSize: '13px', fontFamily: 'Arial',              color: '#888888' });
+    const titleTxt  = this.add.text(44, cardY + 18, song.title,  { fontSize: '17px', fontFamily: 'Arial Black, Arial', color: '#ffffff' });
+    const artistTxt = this.add.text(44, cardY + 44, song.artist, { fontSize: '13px', fontFamily: 'Arial',              color: '#888888' });
+
+    this._scrollContainer.add([card, accent, titleTxt, artistTxt]);
 
     const zone = this.add.zone(20, cardY, cardW, cardH).setOrigin(0).setInteractive({ useHandCursor: true });
-    zone.on('pointerdown', () => this._showDifficultyModal(song.title, (diff) => this._startSong(song, diff)));
+    this._scrollContainer.add(zone);
+
+    zone.on('pointerup', () => {
+      if (this._dragMoved && this._dragMoved()) return;
+      this._showDifficultyModal(song.title, (diff) => this._startSong(song, diff));
+    });
     zone.on('pointerover', () => {
       card.clear();
       card.fillStyle(0x2a2a4e, 1);
@@ -102,9 +159,9 @@ export default class SongSelectScene extends Phaser.Scene {
     });
   }
 
-  _createUploadButton(songCount) {
+  _createUploadButton(songCount, stride) {
     const cx = DESIGN_WIDTH / 2;
-    const btnY = 130 + songCount * 100;
+    const btnY = songCount * stride + 8;
     const btnW = DESIGN_WIDTH - 40;
     const btnH = 80;
 
@@ -114,15 +171,22 @@ export default class SongSelectScene extends Phaser.Scene {
     btn.lineStyle(2, 0x555555, 0.8);
     btn.strokeRoundedRect(20, btnY, btnW, btnH, 10);
 
-    this.add.text(cx, btnY + 40, '+ UPLOAD YOUR SONG', {
+    const lbl1 = this.add.text(cx, btnY + 28, '+ UPLOAD YOUR SONG', {
       fontSize: '18px', fontFamily: 'Arial Black, Arial', color: '#888888', align: 'center'
     }).setOrigin(0.5);
-    this.add.text(cx, btnY + 62, 'mp3, wav, ogg supported', {
+    const lbl2 = this.add.text(cx, btnY + 52, 'mp3, wav, ogg supported', {
       fontSize: '12px', fontFamily: 'Arial', color: '#555555', align: 'center'
     }).setOrigin(0.5);
 
+    this._scrollContainer.add([btn, lbl1, lbl2]);
+
     const zone = this.add.zone(20, btnY, btnW, btnH).setOrigin(0).setInteractive({ useHandCursor: true });
-    zone.on('pointerdown', () => { if (!this._processing) this._triggerUpload(); });
+    this._scrollContainer.add(zone);
+
+    zone.on('pointerup', () => {
+      if (this._dragMoved && this._dragMoved()) return;
+      if (!this._processing) this._triggerUpload();
+    });
     zone.on('pointerover', () => {
       btn.clear();
       btn.fillStyle(0x2a2a3e, 1);

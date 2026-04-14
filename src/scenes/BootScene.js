@@ -6,31 +6,30 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load demo songs if they exist
-    // We use a try-catch approach via error handlers
-    this.load.on('filecomplete', (key) => {
-      console.log('Loaded:', key);
-    });
-
     this.load.on('loaderror', (file) => {
       console.warn('Failed to load:', file.key, '— will skip');
     });
 
-    // Attempt to load demo audio + charts
-    this.load.audio('demo1', ['songs/demo1/track.mp3', 'songs/demo1/track.ogg']);
-    this.load.json('chart-demo1', 'songs/demo1/chart.json');
+    const songs = [
+      { key: 'demo3',  path: 'songs/demo3'  },
+      { key: 'demo4',  path: 'songs/demo4'  },
+      { key: 'demo5',  path: 'songs/demo5'  },
+      { key: 'demo6',  path: 'songs/demo6'  },
+      { key: 'demo7',  path: 'songs/demo7'  },
+      { key: 'demo8',  path: 'songs/demo8'  },
+      { key: 'demo9',  path: 'songs/demo9'  },
+      { key: 'demo10', path: 'songs/demo10' },
+      { key: 'demo11', path: 'songs/demo11' },
+      { key: 'demo12', path: 'songs/demo12' },
+      { key: 'demo13', path: 'songs/demo13' },
+      { key: 'demo14', path: 'songs/demo14' },
+      { key: 'demo15', path: 'songs/demo15' },
+    ];
 
-    this.load.audio('demo2', ['songs/demo2/track.mp3', 'songs/demo2/track.ogg']);
-    this.load.json('chart-demo2', 'songs/demo2/chart.json');
-
-    this.load.audio('demo3', ['songs/demo3/track.mp3']);
-    this.load.json('chart-demo3', 'songs/demo3/chart.json');
-
-    this.load.audio('demo4', ['songs/demo4/track.mp3']);
-    this.load.json('chart-demo4', 'songs/demo4/chart.json');
-
-    this.load.audio('demo5', ['songs/demo5/track.mp3']);
-    this.load.json('chart-demo5', 'songs/demo5/chart.json');
+    for (const s of songs) {
+      this.load.audio(s.key, [`${s.path}/track.mp3`]);
+      this.load.json(`chart-${s.key}`, `${s.path}/chart.json`);
+    }
   }
 
   create() {
