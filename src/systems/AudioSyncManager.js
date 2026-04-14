@@ -1,14 +1,14 @@
 /**
  * Wraps Phaser sound with accurate position tracking.
  *
- * Time source priority:
- *   1. AudioContext.currentTime — hardware-backed monotonic clock, no drift.
- *      We snapshot ctx.currentTime at the moment play() is called and compute
- *      elapsed from that, which gives sub-millisecond accuracy regardless of
- *      frame rate or garbage-collection pauses.
- *   2. sound.seek — Phaser's getter (also uses ctx.currentTime internally for
- *      WebAudioSound); used as a cross-check / HTMLAudio fallback.
- *   3. performance.now() — last resort when Web Audio is unavailable.
+ * Uses sound.seek as the primary time source. For WebAudioSound, Phaser's
+ * seek getter computes `ctx.currentTime - internalStartTime + seekOffset`
+ * where internalStartTime is captured at the moment the BufferSource is
+ * actually scheduled — the correct reference point. Capturing ctx.currentTime
+ * ourselves (before sound.play()) would include Phaser's setup overhead and
+ * run consistently ahead of the real audio position.
+ *
+ * Fallback chain: sound.seek → performance.now() wall clock.
  */
 export default class AudioSyncManager {
   constructor(scene) {
@@ -16,8 +16,7 @@ export default class AudioSyncManager {
     this.sound = null;
     this.audioOffset = 0;
     this._playing = false;
-    this._ctxStartTime = null;   // AudioContext.currentTime snapshot at play()
-    this._wallStartTime = 0;     // performance.now() snapshot at play()
+    this._wallStartTime = 0;
   }
 
   load(key) {
@@ -33,12 +32,6 @@ export default class AudioSyncManager {
     if (!this.sound) return;
     this.audioOffset = offset;
     this._wallStartTime = performance.now();
-
-    // Snapshot the Web Audio clock before calling play() so elapsed time is
-    // computed from a consistent reference with no startup-latency bias.
-    const ctx = this.scene.sound.context;   // WebAudioSoundManager exposes this
-    this._ctxStartTime = ctx ? ctx.currentTime : null;
-
     this._playing = true;
     this.sound.play(offset > 0 ? { seek: offset } : undefined);
   }
@@ -51,19 +44,15 @@ export default class AudioSyncManager {
   get currentTime() {
     if (!this.sound || !this._playing) return this.audioOffset;
 
-    // Primary: AudioContext clock — monotonic, drift-free.
-    const ctx = this.scene.sound.context;
-    if (ctx && this._ctxStartTime !== null) {
-      return this.audioOffset + Math.max(0, ctx.currentTime - this._ctxStartTime);
-    }
-
-    // Secondary: Phaser's seek getter (computed from ctx.currentTime internally
-    // for WebAudioSound; works for HTMLAudioSound too).
-    if (typeof this.sound.seek === 'number' && this.sound.seek >= 0) {
+    // sound.seek: for WebAudioSound, Phaser computes this live from
+    // ctx.currentTime using the startTime it captured when the BufferSource
+    // was actually scheduled — the correct zero reference.
+    // Works for HTMLAudioSound too (returns the <audio> element's currentTime).
+    if (this.sound.isPlaying && typeof this.sound.seek === 'number') {
       return this.sound.seek;
     }
 
-    // Fallback: wall clock.
+    // Fallback: wall-clock elapsed since play() was called.
     return this.audioOffset + (performance.now() - this._wallStartTime) / 1000;
   }
 
@@ -71,6 +60,5 @@ export default class AudioSyncManager {
 
   destroy() {
     if (this.sound) { this.sound.destroy(); this.sound = null; }
-    this._ctxStartTime = null;
   }
 }
