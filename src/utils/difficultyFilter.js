@@ -20,8 +20,20 @@ export function applyDifficulty(chart, difficultyKey) {
     for (const note of tapOnly) {
       if (note.time - lastTime >= 0.05) { deChorded.push(note); lastTime = note.time; }
     }
-    // Keep every other note
-    return { ...chart, notes: deChorded.filter((_, i) => i % 2 === 0) };
+    // Thin to ~50% density by keeping notes at least 2 beats apart.
+    // This preserves pitch/lane variety across the song, unlike index-based
+    // filtering which can eliminate entire pitch bands from cycling patterns.
+    const beatInterval = chart.bpm > 0 ? 60 / chart.bpm : 0.5;
+    const minGap = beatInterval * 2;  // one note every 2 beats on easy
+    const thinned = [];
+    let lastKept = -Infinity;
+    for (const note of deChorded) {
+      if (note.time - lastKept >= minGap) {
+        thinned.push(note);
+        lastKept = note.time;
+      }
+    }
+    return { ...chart, notes: thinned };
   }
 
   if (difficultyKey === 'hard') {

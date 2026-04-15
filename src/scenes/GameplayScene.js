@@ -32,6 +32,7 @@ export default class GameplayScene extends Phaser.Scene {
     this._preRollStartTime = null;  // performance.now() when visual pre-roll begins
     this._audioStarted     = false; // true once audioSync.play() has been called
     this._songTimeFloor    = -NOTE_SPAWN_LEAD; // monotonically advancing — prevents clock going backward
+    this._lastScoredTime   = new Array(4).fill(0); // per-lane ms timestamp of last scored note (dedup)
 
     const diff = DIFFICULTIES[this.difficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     // Effective values used throughout the scene
@@ -305,11 +306,9 @@ export default class GameplayScene extends Phaser.Scene {
         this._demoStartTime = performance.now() - this._pausedAt * 1000;
       } else {
         this._rewindChartToTime(this._pausedAt);
-        // Seek to _pausedAt + hardwareLatency − userOffset so that currentTime
-        // (which subtracts latency and adds userOffset) resumes at _pausedAt.
-        const rawSeek = this._pausedAt
-          + this.audioSync.audioLatency
-          - this.audioSync.userOffsetMs / 1000;
+        // currentTime = elapsed + userOffset, so to resume at _pausedAt
+        // we seek to _pausedAt − userOffset.
+        const rawSeek = this._pausedAt - this.audioSync.userOffsetMs / 1000;
         this.audioSync.play(Math.max(0, rawSeek));
       }
     } else {
@@ -523,6 +522,7 @@ export default class GameplayScene extends Phaser.Scene {
 
     const songTime = this._getSongTime();
     const missMs   = this._timingWindows.MISS;
+    const now      = performance.now();
 
     // 1. Check hold note heads first
     let closestHold  = null;
@@ -544,6 +544,7 @@ export default class GameplayScene extends Phaser.Scene {
       this.hitEffect.spawn(lane, result.judgment);
       this._updateHUD(result);
       this._checkComboMilestone(result.combo);
+      this._lastScoredTime[lane] = now;
       return;
     }
 
@@ -565,6 +566,7 @@ export default class GameplayScene extends Phaser.Scene {
       this.hitEffect.spawn(lane, result.judgment);
       this._updateHUD(result);
       this._checkComboMilestone(result.combo);
+      this._lastScoredTime[lane] = now;
       this.time.delayedCall(80, () => {
         const idx = this.activeNotes.indexOf(closest);
         if (idx !== -1) this._recycleNote(closest, idx);
@@ -572,7 +574,12 @@ export default class GameplayScene extends Phaser.Scene {
       return;
     }
 
-    // Ghost tap — no note in window
+    // Ghost tap — no note in window.
+    // Suppress if a note was just scored on this lane within 80ms: iOS fires a
+    // synthetic mousedown event after touchstart, causing a duplicate lane-tap
+    // that would otherwise show a spurious MISS on top of the real judgment.
+    if (now - (this._lastScoredTime[lane] || 0) < 80) return;
+
     const result = this.scoreManager.registerGhostTap();
     this._updateHUD(result);
     this._showGhostTapFeedback(lane);

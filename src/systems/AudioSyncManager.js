@@ -85,12 +85,12 @@ export default class AudioSyncManager {
     const ctx = this._ctx;
     if (ctx && this._audioStartTime > 0) {
       // Primary clock: audioContext.currentTime anchored to the scheduled start.
-      // Subtract hardware latency so we return the *heard* position, not scheduled.
-      // Add user calibration offset (convert ms → s).
+      // Hardware latency (outputLatency + baseLatency) is logged for reference but
+      // NOT automatically subtracted — browser-reported values are unreliable and
+      // over-correct on many devices. Use userOffsetMs to calibrate manually.
       const elapsed = ctx.currentTime - this._audioStartTime;
-      const latency = this._hardwareLatency;
       const userOff = this._userOffsetMs / 1000;
-      return this.audioOffset + elapsed - latency + userOff;
+      return this.audioOffset + elapsed + userOff;
     }
 
     // Fallback: wall-clock elapsed (no AudioContext or before first play).
