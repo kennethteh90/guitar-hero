@@ -304,7 +304,9 @@ export default class GameplayScene extends Phaser.Scene {
         this._demoStartTime = performance.now() - this._pausedAt * 1000;
       } else {
         this._rewindChartToTime(this._pausedAt);
-        this.audioSync.play(this._pausedAt);
+        // Seek to _pausedAt + latency so that currentTime (seek − latency)
+        // resumes exactly at the visual position we paused at.
+        this.audioSync.play(this._pausedAt + this.audioSync.audioLatency);
       }
     } else {
       this._paused = true;
