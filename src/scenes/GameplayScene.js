@@ -29,6 +29,8 @@ export default class GameplayScene extends Phaser.Scene {
     this._paused  = false;
     this._ended   = false;
     this._demoMode = false;
+    this._preRollStartTime = null;  // performance.now() when visual pre-roll begins
+    this._audioStarted     = false; // true once audioSync.play() has been called
 
     const diff = DIFFICULTIES[this.difficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     // Effective values used throughout the scene
@@ -263,22 +265,38 @@ export default class GameplayScene extends Phaser.Scene {
       }
     };
     this.time.delayedCall(300, doCount);
+
+    // Pre-roll: start the visual update loop NOTE_SPAWN_LEAD seconds before audio
+    // so notes scroll in during the countdown and arrive at the hit zone on beat.
+    // Total countdown = 300 + 800×3 + 400 = 3100 ms.  Pre-roll at 1100 ms (on "2").
+    const COUNTDOWN_MS   = 300 + 800 * 3 + 400;
+    const preRollDelayMs = Math.max(0, COUNTDOWN_MS - NOTE_SPAWN_LEAD * 1000);
+    this.time.delayedCall(preRollDelayMs, () => {
+      if (this._ended) return;
+      this.chartManager.reset();
+      this._preRollStartTime = performance.now();
+      this._playing = true;
+    });
   }
 
   _startPlay() {
-    this._playing = true;
     this._paused = false;
-    this.chartManager.reset();
 
     if (this._demoMode) {
+      // Demo mode has no pre-roll — just start the wall-clock timer from zero.
+      this.chartManager.reset();
+      this._playing = true;
       this._demoStartTime = performance.now();
     } else {
+      // Pre-roll already has _playing = true and chartManager advancing.
+      // Simply start the audio — the visual timeline seamlessly hands off.
+      this._audioStarted = true;
       this.audioSync.play(0);
     }
   }
 
   _togglePause() {
-    if (!this._playing) return;
+    if (!this._playing || !this._audioStarted) return;
 
     if (this._paused) {
       this._paused = false;
@@ -337,7 +355,16 @@ export default class GameplayScene extends Phaser.Scene {
     if (this._demoMode) {
       return (performance.now() - this._demoStartTime) / 1000;
     }
-    return this.audioSync.currentTime;
+    if (this._audioStarted) {
+      // Audio is playing — use the audio clock (most accurate).
+      return this.audioSync.currentTime;
+    }
+    // Pre-roll phase: visual time starts at -NOTE_SPAWN_LEAD and rises to 0
+    // over the NOTE_SPAWN_LEAD seconds before audio begins.
+    if (this._preRollStartTime !== null) {
+      return (performance.now() - this._preRollStartTime) / 1000 - NOTE_SPAWN_LEAD;
+    }
+    return 0;
   }
 
   update(time, delta) {
@@ -401,7 +428,7 @@ export default class GameplayScene extends Phaser.Scene {
     }
 
     this._updateHUD(null);
-    this._updateProgressBar(songTime / (this.chartDuration || 60));
+    this._updateProgressBar(Math.max(0, songTime) / (this.chartDuration || 60));
 
     if (songTime >= (this.chartDuration || 60) + 2) {
       this._endSong();
