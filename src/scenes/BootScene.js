@@ -11,6 +11,7 @@ export default class BootScene extends Phaser.Scene {
     });
 
     const songs = [
+      { key: 'calibration', path: 'songs/calibration' },
       { key: 'demo3',  path: 'songs/demo3'  },
       { key: 'demo4',  path: 'songs/demo4'  },
       { key: 'demo5',  path: 'songs/demo5'  },
