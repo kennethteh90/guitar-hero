@@ -31,6 +31,7 @@ export default class GameplayScene extends Phaser.Scene {
     this._demoMode = false;
     this._preRollStartTime = null;  // performance.now() when visual pre-roll begins
     this._audioStarted     = false; // true once audioSync.play() has been called
+    this._songTimeFloor    = -NOTE_SPAWN_LEAD; // monotonically advancing — prevents clock going backward
 
     const diff = DIFFICULTIES[this.difficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     // Effective values used throughout the scene
@@ -406,13 +407,19 @@ export default class GameplayScene extends Phaser.Scene {
       return (performance.now() - this._demoStartTime) / 1000;
     }
     if (this._audioStarted) {
-      // Audio is playing — use the audio clock (most accurate).
-      return this.audioSync.currentTime;
+      // Audio clock: ctx.currentTime − audioStartTime − hardwareLatency.
+      // For the first ~latency ms after play(), the audio clock is slightly
+      // negative while the hardware buffer fills.  Clamping to _songTimeFloor
+      // (the pre-roll value at the moment play() was called, ≈0) prevents a
+      // visible backward jump in note positions during that brief gap.
+      return Math.max(this.audioSync.currentTime, this._songTimeFloor);
     }
-    // Pre-roll phase: visual time starts at -NOTE_SPAWN_LEAD and rises to 0
-    // over the NOTE_SPAWN_LEAD seconds before audio begins.
+    // Pre-roll phase: advances _songTimeFloor so the floor is always the
+    // latest pre-roll value — used as a lower bound after handoff.
     if (this._preRollStartTime !== null) {
-      return (performance.now() - this._preRollStartTime) / 1000 - NOTE_SPAWN_LEAD;
+      const t = (performance.now() - this._preRollStartTime) / 1000 - NOTE_SPAWN_LEAD;
+      this._songTimeFloor = t;
+      return t;
     }
     return 0;
   }

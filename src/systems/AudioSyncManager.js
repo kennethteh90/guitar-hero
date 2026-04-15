@@ -26,6 +26,7 @@ export default class AudioSyncManager {
     this._wallStartTime = 0;
     this._audioStartTime = 0; // ctx.currentTime when audio was scheduled
     this._hardwareLatency = 0; // baseLatency + outputLatency (cached)
+    this._latencyCached = false;
 
     // User-adjustable calibration (ms), persisted across sessions.
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -54,7 +55,8 @@ export default class AudioSyncManager {
     if (ctx && typeof this.sound.startTime === 'number') {
       this._audioStartTime = this.sound.startTime;
       // Cache hardware latency on first play (stable for AudioContext lifetime).
-      if (this._hardwareLatency === 0) {
+      if (!this._latencyCached) {
+        this._latencyCached = true;
         const out  = typeof ctx.outputLatency === 'number' ? ctx.outputLatency : 0;
         const base = typeof ctx.baseLatency   === 'number' ? ctx.baseLatency   : 0;
         this._hardwareLatency = out + base;
