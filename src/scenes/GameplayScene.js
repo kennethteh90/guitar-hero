@@ -333,19 +333,32 @@ export default class GameplayScene extends Phaser.Scene {
         fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
 
-      resumeBtn.on('pointerup', () => {
-        overlay.destroy(); pauseLabel.destroy(); resumeBtn.destroy(); quitBtn.destroy();
+      const destroyPauseUI = () => {
+        overlay.destroy(); pauseLabel.destroy();
+        resumeBtn.destroy(); restartBtn.destroy(); quitBtn.destroy();
         minusBtn.destroy(); plusBtn.destroy(); offsetLabel.destroy(); offsetHint.destroy();
+      };
+
+      resumeBtn.on('pointerup', () => {
+        destroyPauseUI();
         this._togglePause();
       });
 
-      const quitBtn = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 90, 'QUIT', {
+      const restartBtn = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 90, 'RESTART', {
+        fontSize: '20px', fontFamily: 'Arial', color: '#FFD700'
+      }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
+      restartBtn.on('pointerup', () => {
+        this.audioSync.stop();
+        this.scene.restart({ songKey: this.songKey, chartKey: this.chartKey, difficulty: this.difficulty });
+      });
+
+      const quitBtn = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 130, 'QUIT', {
         fontSize: '20px', fontFamily: 'Arial', color: '#FF6B6B'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
       quitBtn.on('pointerup', () => this.scene.start('SongSelectScene'));
 
       // Audio sync calibration (+/− 10 ms per tap)
-      const offsetHint = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 140, 'AUDIO SYNC', {
+      const offsetHint = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 178, 'AUDIO SYNC', {
         fontSize: '10px', fontFamily: 'Arial', color: '#666666', letterSpacing: 2
       }).setOrigin(0.5).setDepth(26);
 
@@ -354,15 +367,15 @@ export default class GameplayScene extends Phaser.Scene {
         return `${sign}${ms.toFixed(0)} ms`;
       };
 
-      const offsetLabel = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 158, fmtOffset(this.audioSync.userOffsetMs), {
+      const offsetLabel = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 196, fmtOffset(this.audioSync.userOffsetMs), {
         fontSize: '18px', fontFamily: 'Arial Black, Arial', color: '#aaaaaa'
       }).setOrigin(0.5).setDepth(26);
 
-      const minusBtn = this.add.text(DESIGN_WIDTH / 2 - 50, DESIGN_HEIGHT / 2 + 158, '−', {
+      const minusBtn = this.add.text(DESIGN_WIDTH / 2 - 50, DESIGN_HEIGHT / 2 + 196, '−', {
         fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
 
-      const plusBtn = this.add.text(DESIGN_WIDTH / 2 + 50, DESIGN_HEIGHT / 2 + 158, '+', {
+      const plusBtn = this.add.text(DESIGN_WIDTH / 2 + 50, DESIGN_HEIGHT / 2 + 196, '+', {
         fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
 
