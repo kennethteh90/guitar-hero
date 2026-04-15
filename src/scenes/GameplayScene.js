@@ -304,9 +304,12 @@ export default class GameplayScene extends Phaser.Scene {
         this._demoStartTime = performance.now() - this._pausedAt * 1000;
       } else {
         this._rewindChartToTime(this._pausedAt);
-        // Seek to _pausedAt + latency so that currentTime (seek − latency)
-        // resumes exactly at the visual position we paused at.
-        this.audioSync.play(this._pausedAt + this.audioSync.audioLatency);
+        // Seek to _pausedAt + hardwareLatency − userOffset so that currentTime
+        // (which subtracts latency and adds userOffset) resumes at _pausedAt.
+        const rawSeek = this._pausedAt
+          + this.audioSync.audioLatency
+          - this.audioSync.userOffsetMs / 1000;
+        this.audioSync.play(Math.max(0, rawSeek));
       }
     } else {
       this._paused = true;
@@ -332,6 +335,7 @@ export default class GameplayScene extends Phaser.Scene {
 
       resumeBtn.on('pointerup', () => {
         overlay.destroy(); pauseLabel.destroy(); resumeBtn.destroy(); quitBtn.destroy();
+        minusBtn.destroy(); plusBtn.destroy(); offsetLabel.destroy(); offsetHint.destroy();
         this._togglePause();
       });
 
@@ -339,6 +343,37 @@ export default class GameplayScene extends Phaser.Scene {
         fontSize: '20px', fontFamily: 'Arial', color: '#FF6B6B'
       }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
       quitBtn.on('pointerup', () => this.scene.start('SongSelectScene'));
+
+      // Audio sync calibration (+/− 10 ms per tap)
+      const offsetHint = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 140, 'AUDIO SYNC', {
+        fontSize: '10px', fontFamily: 'Arial', color: '#666666', letterSpacing: 2
+      }).setOrigin(0.5).setDepth(26);
+
+      const fmtOffset = (ms) => {
+        const sign = ms > 0 ? '+' : '';
+        return `${sign}${ms.toFixed(0)} ms`;
+      };
+
+      const offsetLabel = this.add.text(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2 + 158, fmtOffset(this.audioSync.userOffsetMs), {
+        fontSize: '18px', fontFamily: 'Arial Black, Arial', color: '#aaaaaa'
+      }).setOrigin(0.5).setDepth(26);
+
+      const minusBtn = this.add.text(DESIGN_WIDTH / 2 - 50, DESIGN_HEIGHT / 2 + 158, '−', {
+        fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
+      }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
+
+      const plusBtn = this.add.text(DESIGN_WIDTH / 2 + 50, DESIGN_HEIGHT / 2 + 158, '+', {
+        fontSize: '24px', fontFamily: 'Arial', color: '#4ECDC4'
+      }).setOrigin(0.5).setDepth(26).setInteractive({ useHandCursor: true });
+
+      minusBtn.on('pointerup', () => {
+        this.audioSync.userOffsetMs = Math.max(-200, this.audioSync.userOffsetMs - 10);
+        offsetLabel.setText(fmtOffset(this.audioSync.userOffsetMs));
+      });
+      plusBtn.on('pointerup', () => {
+        this.audioSync.userOffsetMs = Math.min(200, this.audioSync.userOffsetMs + 10);
+        offsetLabel.setText(fmtOffset(this.audioSync.userOffsetMs));
+      });
     }
   }
 
